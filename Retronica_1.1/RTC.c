@@ -18,7 +18,7 @@
 /************************************************************************/
 void RTC_init(void)
 {
-	RTC_SetValue(RTC_SQWE_ADR, 0x12);	//разрешение мендра с частотой 1√ц (осциллограф выручил, должно быть 0х10, но там частота 8кгц), поэтому 0x12
+	RTC_SetValue(RTC_SQWE_ADR, 10);	//разрешение мендра с частотой 1√ц
 	if ((RTC_get(RTC_SEC_ADR)&0x80)!=0)	//если часы не идут (7 бит=1) - первый запуск
 	{
 		RTC_SetValue(RTC_HOUR_ADR, 12);
@@ -61,7 +61,7 @@ uint8_t RTC_get(uint8_t address)
 	/*выдаем на шину пакет SLA-R*/
 	i2c_send_byte(DS1307_ADR_R);  
 	/*чтение с подтверждением*/
-	data=i2c_get_byte();  //1
+	data=i2c_get_byte(0);  //1
 	i2c_stop_cond();
 	return data;
 	

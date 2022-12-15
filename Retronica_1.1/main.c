@@ -2,8 +2,16 @@
  *
  *
  */ 
+#define F_CPU 16000000UL //частота тактирования процессора
 
 #include "main.h"
+#include <util/delay.h>
+
+void show_temp_func(uint32_t temper_data);
+void show_press_func(uint32_t press_data);
+
+uint32_t bmp180_data;
+uint8_t temp_or_press_flag;
 
 /************************************************************************/
 /*                                                                      */
@@ -25,6 +33,7 @@ int main(void)
  	indicators_init();	//инициализация таймера динамической индикации
  	i2c_Init();			
  	RTC_init();			//если часы не запущены, то запустит
+	BMP180_init();
 	sei();
 		
  	if (!(mcusr_mirror&(1<<WDRF)))    //если сброс был не от WDT то с анимацией включения
@@ -79,26 +88,35 @@ while (1)
 	
 	static uint8_t input_rtc_flag;		//флаг новой секунды, сигнал о которой приходит от ds1307	
 
-	if ((!RTC_INPUT)&&(!input_rtc_flag))	
-	{
+	if ((!RTC_INPUT)&&(!input_rtc_flag)){
 		input_rtc_flag = 1;  //сделано, чтобы обработка прерывания от ds13007 выполнялась только один раз на весь низкий уровень
-		
 		total_us += (uint32_t)correct_us; //подсчет набежавшей коррекции
-		if (total_us >= 10000000 ) start_correct_flag = 1;  //выкладки в excel файле
+		if (total_us >= 10000000 ) start_correct_flag = 1;  //выкладки смотреть в excel файле
 	}
-	if (RTC_INPUT&&input_rtc_flag)	
-	{
+	
+	if (RTC_INPUT&&input_rtc_flag){
 		input_rtc_flag = 0;
 		if ((Status == STATUS_MAIN) && (!single_animation_flag))	time_manager();	//обработка сигнала от ds1307 		 
 	}  	 	if (flag_settings_delay)	stop_delay();		//задержка выхода из настроек (5 секунд) 	if (flag_start_led)			led_delay();		//запускает обработку смены цвета
 	if (buzzer_flag)			start_buzzer();		//включение будильника
 	if (single_animation_flag)	single_animation();	//анимация переключения цифр против отравления катодов
-	if (therm_ready_flag)							//если запрос на преобразование отправлен, то ждем 750 мс и считываем данные о температуре
-	{
-		if (GetTick() - therm_ready_delay > 750)
-		{
-			therm_ready_flag = 0;
-			therm_read_temperature(&temp_data);
+	if (get_temp_press_flag){						//если запрос на преобразование отправлен, то ждем 750 мс и считываем данные о температуре
+		if (GetTick() - bmp180_save_ticks > bmp180_delay){
+			bmp180_delay = BMP180_get_temp_press(temp_or_press_flag, &bmp180_data);
+			if(bmp180_delay == 0){
+				get_temp_press_flag = 0; 				
+				if (temp_or_press_flag == 0)		//если ждали температуру, то покажем
+				{
+					show_temp_func(bmp180_data);
+				}
+				else     //иначе ждали давление
+				{
+					show_press_func(bmp180_data);
+				}				
+			}
+			else{
+				bmp180_save_ticks = GetTick();
+			}			
 		}
 	}
 	button_processing();
@@ -126,22 +144,17 @@ static void single_animation(void)
 	
 	Ind[num].lamp = arr[index];
 	
-	if (GetTick() - delay_animation > 50)
-	{
+	if (GetTick() - delay_animation > 50){
 		delay_animation = GetTick();
 		index++;
-		if (index == 10)
-		{
+		if (index == 10){
 			Ind[num].lamp = Ind[num].clone;
 			num++;
 			index = 0;
-			if (num == 4)
-			{
+			if (num == 4){
 				num = 0;
 				single_animation_flag = 0;
-			}
-		}
-	}
+			}}}
 }
 /************************************************************************/
 /*      Запуск задержки в 5 секунд для выхода из режима настроек       */
@@ -152,8 +165,7 @@ static void start_delay(void)  {	flag_settings_delay = 1;	delay_for_exit = Ge
 /************************************************************************/
 static void stop_delay(void)
 {	
-	if (GetTick() - delay_for_exit > 5000) 
-	{		Menu_Navigate(&Main_menu);
+	if (GetTick() - delay_for_exit > 5000){		Menu_Navigate(&Main_menu);
 	}
 }
 /************************************************************************/
@@ -215,6 +227,7 @@ static void button_processing(void)
 			}break;			default:break;		}
 	}
 }
+
 /************************************************************************
    Функция отображения времени/даты/температуры. Следит за будильниками
      и выставляет флаг на включение. Включает флаги на анимацию против
@@ -223,27 +236,24 @@ static void button_processing(void)
 	Time.Hour=((Time.Hour>>4)*10)+(Time.Hour&0x0f); //перевод в десятичные
 	Time.Min=(((Time.Min>>4)*10)+(Time.Min&0x0f));  //перевод в десятичные
 		
-/************************************************************************/
-/*			   Отключить будильник спустя минуту работы                 */
-/************************************************************************/
+	/************************************************************************/
+	/*			   Отключить будильник спустя минуту работы                 */
+	/************************************************************************/
 	if (buzzer_flag&&Time.Sec==0x59)	buzzer_flag = stop_buzzer();
 	
-/************************************************************************/
-/*					Проверка будильников и их включение				    */
-/************************************************************************/
-	if (Time.Sec==0)
-	{
-		for (uint8_t j=0;j<4;j++)
-		{
-			if ((Alarm[j].Al_status==1) && (Alarm[j].Al_hour==Time.Hour) && (Alarm[j].Al_min==Time.Min))
-			{
+	/************************************************************************/
+	/*					Проверка будильников и их включение				    */
+	/************************************************************************/
+	if (Time.Sec==0){
+		for (uint8_t j=0;j<4;j++){
+			if ((Alarm[j].Al_status==1) && (Alarm[j].Al_hour==Time.Hour) && (Alarm[j].Al_min==Time.Min)){
 				buzzer_flag = 1;			// функция включения звука			
 			}
 		}
 	}
-/************************************************************************/
-/*						Корректировка времени                           */
-/************************************************************************/
+	/************************************************************************/
+	/*						Корректировка времени                           */
+	/************************************************************************/
 	if ((start_correct_flag)&&(Time.Sec==0x25)) //делать перевод на 25-й секунде (25 представлена в 16-тиричной системе)
 	{											//вычитание и сложение в 10-тичной единицы даст верную запись в 16-ти
 		start_correct_flag = 0;
@@ -252,10 +262,10 @@ static void button_processing(void)
 		if (Time.Correct_sec < 0)Time.Sec -= 1;
 		RTC_SetValue(RTC_SEC_ADR, ((Time.Sec>>4)*10) + (Time.Sec&0x0F));	//преобразовать секунды в десятичный формат и записать
 	}
-/************************************************************************/
-/*						Условие на показ даты			                */
-/************************************************************************/
-	if ((Time.data_on) && (((Time.Sec>=0x05)&&(Time.Sec<0x10))||((Time.Sec>=0x35)&&(Time.Sec<0x40))))
+	/************************************************************************/
+	/*						Условие на показ даты	с 5 по 10 секунды       */
+	/************************************************************************/
+	if ((Time.data_on) && (Time.Sec>=0x05) && (Time.Sec<0x10))
 	{
 		no_points_global = 1;  //убрать точки с будильников
 		Time.Day=RTC_get(RTC_DAY_ADR);
@@ -266,61 +276,71 @@ static void button_processing(void)
 		Ind[3].lamp=Time.Month&0x0f;
 		return;
 	}	
-/************************************************************************/
-/*					Условие на показ температуры                        */
-/************************************************************************/	
-    if((Time.temp_on)&&(((Time.Sec>=0x19)&&(Time.Sec<0x24))||((Time.Sec>=0x49)&&(Time.Sec<0x54))))  //Запуск преобразования за секунду до показа
-    {
-	  	therm_ready_flag = therm_start_convert();
-		therm_ready_delay = GetTick();
-		if (!therm_ready_flag)	temp_data = 999; //если датчик не найден, то выдать ошибку 99,9
-    }
- 	if ((Time.temp_on) && (((Time.Sec>=0x20)&&(Time.Sec<0x25))||((Time.Sec>=0x50)&&(Time.Sec<0x55))))  //Показ температуры
- 	{	
-		static uint16_t filt_temp_data;
-		const uint8_t k = 3, A = 7;  //[k=2 A=3], [k=3 A=7], [k=4 A=15], [k=5 A=31], чем больше k тем плавнее фильтр
-		
-		if (abs(temp_data - filt_temp_data) > 20) filt_temp_data = temp_data; //если отличаются на 2 градуса, то фильтру присвоить новое значение
-		else	filt_temp_data = (A*filt_temp_data + temp_data) >> k;  //фильтр
-		
-		if (filt_temp_data > 999) filt_temp_data = 999;  //максимумальная отоброжаемая температура
-	
-		no_points_global = 1;  //убрать точки с будильников
-		DIVIDING_POINT_ON;
-				
- 		Ind[0].lamp = filt_temp_data/100;
- 		Ind[1].lamp = (filt_temp_data%100)/10;
- 		Ind[2].lamp = filt_temp_data%10;
-		Ind[3].lamp = 10;	
+	/************************************************************************/
+	/*					Условие на показ температуры    с 25 по 30 секунды  */
+	/************************************************************************/	
+    if((Time.temp_on) && (Time.Sec>=0x15) && (Time.Sec<0x55))  
+    {		
+	  	get_temp_press_flag = 1;
+		temp_or_press_flag = 0;
+		bmp180_delay = BMP180_get_temp_press(temp_or_press_flag, &bmp180_data);
+		bmp180_save_ticks = GetTick();
 		return;
 	}	
-/************************************************************************/
-/*			     Условие на пробег цифр каждые 5 минут					*/
-/************************************************************************/
-  		no_points_global = 0;  //показать точки будильников
-  		if ((Time.am_pm)&&(Time.Hour>11))  Time.Hour-=12;				
+	/************************************************************************/
+	/*					Условие на показ давления       с 45 по 50 секунды  */
+	/************************************************************************/
+	if((Time.press_on) && (Time.Sec>=0x45) && (Time.Sec<0x50))
+	{
+		get_temp_press_flag = 1;
+		temp_or_press_flag = 1;
+		bmp180_delay = BMP180_get_temp_press(temp_or_press_flag, &bmp180_data);
+		bmp180_save_ticks = GetTick();
+		return;
+	}	
+	/************************************************************************/
+	/*			     Условие на пробег цифр каждые 5 минут					*/
+	/************************************************************************/
+	no_points_global = 0;  //показать точки будильников
+	if ((Time.am_pm)&&(Time.Hour>11))  Time.Hour-=12;				
   		
-  		if ( ((Time.Sec==0x00)&&((Time.Min%5)==0)) || start_program_flag )   //Анимация переключения против отравления катодов каждые 5 минут
-  		{
-  			start_program_flag = 0;
-  			single_animation_start();
-  			Ind[0].clone = Time.Hour/10;
-  			Ind[1].clone = Time.Hour%10;
-  			Ind[2].clone = Time.Min/10;
-  			Ind[3].clone = Time.Min%10;
-  		}		
-/************************************************************************/
-/*			Если никакие условия не проходят, то показать время         */
-/************************************************************************/
-		else
-  		{
-	  		Ind[0].lamp=Time.Hour/10;
-	  		Ind[1].lamp=Time.Hour%10;
-	  		Ind[2].lamp=Time.Min/10;
-	  		Ind[3].lamp=Time.Min%10;
-  		}
-  		PORTC^=(1<<PC0); //инверсия точки
-}/************************************************************************/
+	if ( ((Time.Sec==0x00)&&((Time.Min%5)==0)) || start_program_flag )   //Анимация переключения против отравления катодов каждые 5 минут
+	{
+  		start_program_flag = 0;
+  		single_animation_start();
+  		Ind[0].clone = Time.Hour/10;
+  		Ind[1].clone = Time.Hour%10;
+  		Ind[2].clone = Time.Min/10;
+  		Ind[3].clone = Time.Min%10;
+	}		
+	/************************************************************************/
+	/*			Если никакие условия не проходят, то показать время         */
+	/************************************************************************/
+	else
+	{
+		Ind[0].lamp=Time.Hour/10;
+		Ind[1].lamp=Time.Hour%10;
+		Ind[2].lamp=Time.Min/10;
+		Ind[3].lamp=Time.Min%10;
+	}
+	PORTC^=(1<<PC0); //инверсия точки
+}/************************************************************************/
+/*                                                                      */
+/************************************************************************/void show_temp_func(uint32_t temper_data){	
+	no_points_global = 1;  //убрать точки с будильников
+	DIVIDING_POINT_ON;
+	Ind[0].lamp = temper_data/100;
+	Ind[1].lamp = (temper_data%100)/10;
+	Ind[2].lamp = temper_data%10;
+	Ind[3].lamp = 10;	}/************************************************************************/
+/*                                                                      */
+/************************************************************************/void show_press_func(uint32_t press_data){	no_points_global = 1;  //убрать точки с будильников
+	DIVIDING_POINT_OFF;
+	Ind[0].lamp = 10;
+	Ind[1].lamp = press_data/100;
+	Ind[2].lamp = (press_data%100)/10;
+	Ind[3].lamp = press_data%10;
+	return;	}/************************************************************************/
 /*                                                                      */
 /************************************************************************/
 static void ports_init(void)

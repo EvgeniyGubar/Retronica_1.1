@@ -131,7 +131,8 @@ static uint8_t therm_read_bit(void){
 // читаем байт
 static uint8_t therm_read_byte(void){
 	uint8_t i=8, n=0;
-	while(i--){
+	while(i--)
+	{
 		// сдвигаем в право на 1 и сохраняем следующее значение
 		n>>=1;
 		n|=(therm_read_bit()<<7);
@@ -142,7 +143,8 @@ static uint8_t therm_read_byte(void){
 // отправляем байт
 static void therm_write_byte(uint8_t byte){
 	uint8_t i=8;
-	while(i--){
+	while(i--)
+	{
 		// отправляем бит и сдвигаем вправо на 1
 		therm_write_bit(byte&1);
 		byte>>=1;

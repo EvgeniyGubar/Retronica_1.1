@@ -37,6 +37,7 @@ struct
 	uint8_t		Year;
 	uint8_t     data_on;
 	uint8_t     temp_on;
+	uint8_t		press_on;
 	uint8_t     am_pm;
 	 int8_t		Correct_sec;
 } Time;
@@ -70,7 +71,7 @@ enum ModeStatus Status;
 
 void show_main(void);
 
-void set_am_pm(void);void set_hours(void);void set_minuts(void);void set_day(void);void set_month(void);void set_year(void);void show_data_on(void);void show_temp_on(void);void correction(void);
+void set_am_pm(void);void set_hours(void);void set_minuts(void);void set_day(void);void set_month(void);void set_year(void);void show_data_on(void);void show_temp_on(void);void show_press_on(void);void correction(void);
 
 void number_al(void);	//Далее ряд фукций по настройке будильниковvoid activ_alarm(void);	//Включение/выключение выбранного будильникаvoid hour_alarm(void);	//Установка часов будильникаvoid min_alarm(void);	//Установка минут будильника
 

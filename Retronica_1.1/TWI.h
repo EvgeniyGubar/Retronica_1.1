@@ -14,6 +14,6 @@ void i2c_Init(void);					//ИНИЦИАЛИЗАЦИЯ
 void i2c_start_cond(void);				//ФОРМИРОВАНИЕ СОСТОЯНИЯ СТАРТ НА ШИНЕ
 void i2c_send_byte (unsigned char data);//ОТПРАВКА БАЙТА ДАННЫХ
 void i2c_stop_cond(void);				//ФОРМИРОВАНИЕ СОСТОЯНИЯ СТОП НА ШИНЕ
-uint8_t i2c_get_byte(void);				//ЧТЕНИЕ БАЙТА ДАННЫХ   //0-с подтверждением, 1-без него   uint8_t ack
+uint8_t i2c_get_byte(uint8_t ack);				//ЧТЕНИЕ БАЙТА ДАННЫХ   //0-с подтверждением, 1-без него   uint8_t ack
 
 #endif /* TWI_H_ */

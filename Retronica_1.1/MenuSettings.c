@@ -14,7 +14,7 @@ static void constrain(int8_t *param, int8_t min, int8_t max);//возвращает зацикл
 /************************************************************************/void show_main(void){
 	if (time_change_flag)    //если были настройки
 	{
-		RTC_SetValue(RTC_SQWE_ADR, 0x12);	//разрешение мендра с частотой 1Гц
+		RTC_SetValue(RTC_SQWE_ADR, 10);	//разрешение мендра с частотой 1Гц
 		RTC_SetValue(RTC_SEC_ADR, 00);	//записать 0 и запустить счет
 		time_change_flag = 0;
 		total_us = 0;	//обнулить счетчик корректировочных микросекунд 
@@ -120,11 +120,13 @@ static void constrain(int8_t *param, int8_t min, int8_t max);//возвращает зацикл
 /*                                                                      */
 /************************************************************************/void show_temp_on(void){	if (i != 0)	Time.temp_on^=(0x01); //инверсия бита статуса	Ind[0].lamp=2;	Ind[1].lamp=10;	Ind[2].lamp=10;	Ind[3].lamp=Time.temp_on;}/************************************************************************/
 /*                                                                      */
+/************************************************************************/void show_press_on(void){	if (i != 0)	Time.temp_on^=(0x01); //инверсия бита статуса	Ind[0].lamp=3;	Ind[1].lamp=10;	Ind[2].lamp=10;	Ind[3].lamp=Time.press_on;}/************************************************************************/
+/*                                                                      */
 /************************************************************************/void correction(void){	if (i!=0)
 	{
 		Time.Correct_sec+=i;
 		constrain((int8_t*)&Time.Correct_sec,-99,99);
-	}		if (Time.Correct_sec<0)	DIVIDING_POINT_ON;	else	DIVIDING_POINT_OFF;		Ind[0].lamp=3;	Ind[1].lamp=10;	Ind[2].lamp=abs(Time.Correct_sec/10);  //модуль	Ind[3].lamp=abs(Time.Correct_sec%10);  //модуль}
+	}		if (Time.Correct_sec<0)	DIVIDING_POINT_ON;	else	DIVIDING_POINT_OFF;		Ind[0].lamp=4;	Ind[1].lamp=10;	Ind[2].lamp=abs(Time.Correct_sec/10);  //модуль	Ind[3].lamp=abs(Time.Correct_sec%10);  //модуль}
 /************************************************************************/
 /*		  	   Далее ряд фукций по настройке будильников                */
 /************************************************************************/void number_al(void){	DIVIDING_POINT_ON;	Status = STATUS_SETTINGS;	selectable_alarm_point = 1;  //показываем точку выбранного будильника. флаг который используется в обработчике таймера индикации	if (i!=0)

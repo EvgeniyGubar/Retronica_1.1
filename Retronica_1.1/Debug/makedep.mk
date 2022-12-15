@@ -2,11 +2,11 @@
 # Automatically-generated file. Do not edit or delete the file
 ################################################################################
 
+bmp180.c
+
 Buttons.c
 
 Buzzer.c
-
-DS18B20.c
 
 EEPROM.c
 
