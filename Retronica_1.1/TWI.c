@@ -52,19 +52,16 @@ void i2c_stop_cond(void)
 /************************************************************************/
 uint8_t i2c_get_byte(uint8_t ack)    //0-с подтверждением, 1-без него   uint8_t ack
 {
-	uint8_t data=0;
-	
 	if (ack)  //чтение с подтвержением
 	{
 	 	TWCR = (1<<TWINT)|(1<<TWEA)|(1<<TWEN);
-	 	while(!(TWCR & (1<<TWINT)));
-	 	data = TWDR;
 	}
 	else  //чтение без подтверждения	
 	{
 		TWCR = (1<<TWINT)|(1<<TWEN);
-		while(!(TWCR & (1<<TWINT)));
-		data = TWDR;
-	};
-	return data;
+	}
+	
+	while(!(TWCR & (1<<TWINT)));
+	
+	return TWDR;
 }

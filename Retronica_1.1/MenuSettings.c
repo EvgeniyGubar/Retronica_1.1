@@ -1,11 +1,13 @@
 /*
- * Menu_items.c
- *
- * Created: 18.05.2022 10:36:41
- *  Author: User
- */ 
+* Menu_items.c
+*
+* Created: 18.05.2022 10:36:41
+*  Author: User
+*/
 
 #include "MenuSettings.h"
+
+static uint8_t time_change_flag;  //флаг редактирования времени в настройках
 
 static void constrain(int8_t *param, int8_t min, int8_t max);//возвращает зациклинное значение параметра, ограниченное min и max
 
@@ -14,32 +16,29 @@ static void constrain(int8_t *param, int8_t min, int8_t max);//возвращает зацикл
 /************************************************************************/void show_main(void){
 	if (time_change_flag)    //если были настройки
 	{
-		RTC_SetValue(RTC_SQWE_ADR, 10);	//разрешение мендра с частотой 1Гц
+		RTC_SetValue(RTC_SQWE_ADR, 10);	//разрешение мендра с частотой 1Г
 		RTC_SetValue(RTC_SEC_ADR, 00);	//записать 0 и запустить счет
 		time_change_flag = 0;
-		total_us = 0;	//обнулить счетчик корректировочных микросекунд 
+		total_us = 0;	//обнулить счетчик корректировочных микросекунд
 	}
-	Ind[0].blink=Ind[1].blink=Ind[2].blink=Ind[3].blink=0;  
-	flag_settings_delay = 0;	
-	selectable_alarm_point = 0;	//отключаем точки на будильниках. Если Al_status не равен нулю, то все равно точка гореть будет.	no_points_global = 0;		//показать точки на будильниках	correct_us = (uint16_t)abs(Time.Correct_sec*10000000/86400);  //константа	Status = STATUS_MAIN;	save_to_eeprom();			//если были какие-то изменения в настройках, то они сохранятся в EEPROM	time_manager();}
-
-
-
+	Ind[0].blink = Ind[1].blink = Ind[2].blink = Ind[3].blink = 0;
+	flag_settings_delay = 0;
+	selectable_alarm_point = 0;	//отключаем точки на будильниках. Если Al_status не равен нулю, то все равно точка гореть будет.	no_points_global = 0;		//показать точки на будильниках	correct_us = (uint16_t)abs(Time.Correct_sec * 10000000 / 86400);	//константа	Status = STATUS_MAIN;	save_to_eeprom();			//если были какие-то изменения в настройках, то они сохранятся в EEPROM	time_manager();}
 
 /************************************************************************/
 /*                     Установить режим отображения                     */
-/************************************************************************/void set_am_pm(void){			Status = STATUS_SETTINGS;		no_points_global = 1;  //убрать точки с будильников		if (i != 0)	Time.am_pm^=(0x01); //инверсия бита статуса		Time.Hour=RTC_get(RTC_HOUR_ADR);		DIVIDING_POINT_OFF;  //гасим точку	Ind[0].blink=Ind[1].blink=1;   //моргаем часами
- 	if (Time.am_pm==0)
- 	{
- 		Ind[0].lamp = 2;
- 		Ind[1].lamp = 4;
- 	}
- 	else
- 	{
- 		Ind[0].lamp = 1;
- 		Ind[1].lamp = 2;
- 	}
- 	Ind[2].lamp = Ind[3].lamp = 10;
+/************************************************************************/void set_am_pm(void){	Status = STATUS_SETTINGS;	no_points_global = 1;  //убрать точки с будильников		if (i != 0)	Time.am_pm^=(0x01); //инверсия бита статуса		Time.Hour=RTC_get(RTC_HOUR_ADR);		DIVIDING_POINT_OFF;  //гасим точку	Ind[0].blink=Ind[1].blink=1;   //моргаем часами
+	if (Time.am_pm==0)
+	{
+		Ind[0].lamp = 2;
+		Ind[1].lamp = 4;
+	}
+	else
+	{
+		Ind[0].lamp = 1;
+		Ind[1].lamp = 2;
+	}
+	Ind[2].lamp = Ind[3].lamp = 10;
 }
 /************************************************************************/
 /*                      Установить часы                                 */
@@ -120,7 +119,7 @@ static void constrain(int8_t *param, int8_t min, int8_t max);//возвращает зацикл
 /*                                                                      */
 /************************************************************************/void show_temp_on(void){	if (i != 0)	Time.temp_on^=(0x01); //инверсия бита статуса	Ind[0].lamp=2;	Ind[1].lamp=10;	Ind[2].lamp=10;	Ind[3].lamp=Time.temp_on;}/************************************************************************/
 /*                                                                      */
-/************************************************************************/void show_press_on(void){	if (i != 0)	Time.temp_on^=(0x01); //инверсия бита статуса	Ind[0].lamp=3;	Ind[1].lamp=10;	Ind[2].lamp=10;	Ind[3].lamp=Time.press_on;}/************************************************************************/
+/************************************************************************/void show_press_on(void){	if (i != 0)	Time.press_on^=(0x01); //инверсия бита статуса	Ind[0].lamp=3;	Ind[1].lamp=10;	Ind[2].lamp=10;	Ind[3].lamp=Time.press_on;}/************************************************************************/
 /*                                                                      */
 /************************************************************************/void correction(void){	if (i!=0)
 	{
@@ -185,7 +184,7 @@ static void constrain(int8_t *param, int8_t min, int8_t max);//возвращает зацикл
 	DIVIDING_POINT_OFF;
 	if (i|=0)
 	{
- 		if ((LED.mode != 1)&&(flag_start_led == 0))	led_color_run();	//если цвет был остановлен, то запустить
+		if ((LED.mode != 1)&&(flag_start_led == 0))	led_color_run();	//если цвет был остановлен, то запустить
 		LED.mode+=i;
 		constrain((int8_t*)&LED.mode,1,3);
 		led_config();	//сконфигурировать настройки
@@ -211,7 +210,7 @@ void speed_led(void)  //период полной смены цветов
 	Ind[0].lamp=2;
 	Ind[1].lamp=10;
 	Ind[2].lamp=10;
-	Ind[3].lamp=LED.speed;	
+	Ind[3].lamp=LED.speed;
 }
 /************************************************************************/
 /*					Настройка яркости подсветки                         */
@@ -227,9 +226,8 @@ void bright_led(void)
 	Ind[0].lamp=3;
 	Ind[1].lamp=10;
 	Ind[2].lamp=10;
-	Ind[3].lamp=LED.bright;	
+	Ind[3].lamp=LED.bright;
 }
-
 
 
 

@@ -10,8 +10,8 @@
 void show_temp_func(uint32_t temper_data);
 void show_press_func(uint32_t press_data);
 
-uint32_t bmp180_data;
-uint8_t temp_or_press_flag;
+static uint32_t bmp180_data;
+static uint8_t temp_or_press_flag;
 
 /************************************************************************/
 /*                                                                      */
@@ -279,7 +279,7 @@ static void button_processing(void)
 	/************************************************************************/
 	/*					Условие на показ температуры    с 25 по 30 секунды  */
 	/************************************************************************/	
-    if((Time.temp_on) && (Time.Sec>=0x15) && (Time.Sec<0x55))  
+    if((Time.temp_on) && (Time.Sec>=0x25) && (Time.Sec<0x30))  
     {		
 	  	get_temp_press_flag = 1;
 		temp_or_press_flag = 0;
@@ -302,6 +302,7 @@ static void button_processing(void)
 	/*			     Условие на пробег цифр каждые 5 минут					*/
 	/************************************************************************/
 	no_points_global = 0;  //показать точки будильников
+
 	if ((Time.am_pm)&&(Time.Hour>11))  Time.Hour-=12;				
   		
 	if ( ((Time.Sec==0x00)&&((Time.Min%5)==0)) || start_program_flag )   //Анимация переключения против отравления катодов каждые 5 минут
